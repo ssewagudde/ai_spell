@@ -8,6 +8,7 @@ command! AISpellSetup lua require('ai-spell').setup()
 
 nnoremap <silent> <Plug>AISpellCheck :AISpellCheck<CR>
 
-if !hasmapto('<Plug>AISpellCheck')
-  nmap <leader>sp <Plug>AISpellCheck
-endif
+augroup AISpellFileTypes
+  autocmd!
+  autocmd FileType text,markdown if !hasmapto('<Plug>AISpellCheck') | nmap <buffer> <leader>sp <Plug>AISpellCheck | endif
+augroup END
