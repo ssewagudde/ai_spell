@@ -2,17 +2,17 @@ local M = {}
 
 local function build_api_url()
 	local base_url = vim.env.LLM_BASE_URL or "http://localhost:11434"
-	
+
 	-- If it already has an endpoint, use as-is
 	if base_url:match("/api/generate") or base_url:match("/chat/completions") then
 		return base_url
 	end
-	
+
 	-- If it looks like an OpenAI-style base URL, append chat/completions
 	if base_url:match("^https?://") then
 		return base_url .. "/chat/completions"
 	end
-	
+
 	-- Default to Ollama format
 	return base_url .. "/api/generate"
 end
@@ -24,6 +24,7 @@ local config = {
 	timeout = 30000,
 	max_tokens = 4096,
 	temperature = 0.1,
+	debug = false,
 }
 
 local function get_buffer_content()
@@ -112,9 +113,11 @@ Here is the input text:
 		vim.fn.shellescape(data),
 		math.floor(config.timeout / 1000)
 	)
-	
-	print("Using API URL:", config.api_url)
-	print("Full curl command:", cmd)
+
+	if config.debug then
+		print("Using API URL:", config.api_url)
+		print("Full curl command:", cmd)
+	end
 
 	vim.fn.jobstart(cmd, {
 		stdout_buffered = true,
@@ -122,7 +125,9 @@ Here is the input text:
 			if data_lines and #data_lines > 0 then
 				local response_text = table.concat(data_lines, "")
 				if response_text ~= "" then
-					print("Raw API response:", response_text)
+					if config.debug then
+						print("Raw API response:", response_text)
+					end
 					local ok, response = pcall(vim.fn.json_decode, response_text)
 					if ok and response then
 						local content
@@ -137,11 +142,15 @@ Here is the input text:
 						if content then
 							callback(nil, content)
 						else
-							print("Unexpected response format:", vim.inspect(response))
+							if config.debug then
+								print("Unexpected response format:", vim.inspect(response))
+							end
 							callback("Unexpected response format", nil)
 						end
 					else
-						print("JSON decode failed. Error:", vim.inspect(response))
+						if config.debug then
+							print("JSON decode failed. Error:", vim.inspect(response))
+						end
 						callback("Failed to parse API response: " .. tostring(response), nil)
 					end
 				end
@@ -185,8 +194,10 @@ function M.proofread_buffer()
 			vim.notify("Proofread version appended to buffer", vim.log.levels.INFO)
 		else
 			vim.notify("Could not extract corrected text from response", vim.log.levels.WARN)
-			print("Full response:")
-			print(response)
+			if config.debug then
+				print("Full response:")
+				print(response)
+			end
 		end
 	end)
 end
@@ -200,4 +211,3 @@ function M.setup(opts)
 end
 
 return M
-
